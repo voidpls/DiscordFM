@@ -133,7 +133,6 @@ async function pushChannels(guild) {
   }
 
   const channels = guild.channels.cache
-    .sort((a, b) => a.position - b.position)
     .filter(channelFilter)
     .map(c => ({ id: c.id, name: c.name }));
 
