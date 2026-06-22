@@ -1,0 +1,20 @@
+{
+  "name": "discordfm-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node src/index.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "discord.js": "^14.19.1",
+    "dotenv": "^16.5.0",
+    "gemoji": "^8.1.0",
+    "number-to-words": "^1.2.4",
+    "tiny-tts": "^5.0.1"
+  },
+  "devDependencies": {
+    "vitest": "^3.1.1"
+  }
+}
