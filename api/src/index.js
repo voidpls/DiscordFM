@@ -5,11 +5,17 @@ import { streamSSE } from 'hono/streaming';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { createRequire } from 'module';
 import { state } from './state.js';
+import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { join, dirname } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(__dirname, '../..');
+
+const cachedHtml = (() => {
+  try { return readFileSync(join(projectRoot, 'web/dist/index.html'), 'utf-8'); }
+  catch { return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>DiscordFM</title></head><body></body></html>'; }
+})();
 
 const require = createRequire(import.meta.url);
 const config = require('../../config.js');
@@ -146,6 +152,25 @@ app.get('/api/config', (c) => {
   return c.json({
     overrideDefaultChannelId: config.overrideDefaultChannelId,
   });
+});
+
+// Serve the root HTML with dynamic OG tags based on the current server state
+app.get('/', (c) => {
+  let html = cachedHtml;
+  const { serverName, serverIcon } = state.getServerInfo();
+  if (serverName) {
+    html = html.replace(
+      /property="og:description"\s+content="[^"]*"/,
+      `property="og:description" content="Live [${serverName}] TTS radio."`
+    );
+  }
+  if (serverIcon) {
+    html = html.replace(
+      /property="og:image"\s+content="[^"]*"/,
+      `property="og:image" content="${serverIcon}"`
+    );
+  }
+  return c.html(html);
 });
 
 app.use('*', serveStatic({ root: join(projectRoot, 'web/dist') }));
