@@ -5,7 +5,7 @@ import { getPhonemeIds } from './g2p.js';
 const require = createRequire(import.meta.url);
 const config = require('../../config.js');
 
-const { discordToken, serverId, viewAsRoleId, port } = config;
+const { discordToken, serverId, viewAsRoleId, port, ttsMaxChars } = config;
 
 const client = new Client({
   intents: [
@@ -46,9 +46,14 @@ function formatContent(message) {
 function formatMessagePayload(message) {
   const raw = formatContent(message);
   const clean = message.cleanContent || raw;
+  let g2pInput = clean;
+  if (g2pInput.length > ttsMaxChars) {
+    const cutoff = g2pInput.lastIndexOf(' ', ttsMaxChars);
+    g2pInput = cutoff > 0 ? g2pInput.slice(0, cutoff) : g2pInput.slice(0, ttsMaxChars);
+  }
   let phonemes = null;
   try {
-    phonemes = getPhonemeIds(clean);
+    phonemes = getPhonemeIds(g2pInput);
   } catch (err) {
     console.error('[bot] G2P error:', err.message);
   }

@@ -21,4 +21,8 @@ module.exports = {
 
   // Server port (API + static web files in production, default 3000)
   port: parseInt(process.env.PORT || "3000", 10),
+
+  // Truncate TTS input to this many characters to keep inference fast.
+  // Text is cut at the last space before the limit.
+  ttsMaxChars: parseInt(process.env.TTS_MAX_CHARS || "250", 10),
 };
