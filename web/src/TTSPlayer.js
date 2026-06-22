@@ -25,50 +25,22 @@ class TTSPlayer {
     this.onError = null;
   }
 
-  // Play a silent clip through an HTMLAudioElement to unlock iOS audio session,
-  // allowing AudioContext output to bypass the hardware mute switch
-  async unlockAudio() {
+  // Play a silent WAV through an HTMLAudioElement to prime the iOS audio session,
+  // so AudioContext output is treated as active media (not silenced by mute switch)
+  unlockAudio() {
     if (this._audioUnlocked) return;
-    try {
-      const sampleRate = 8000;
-      const numSamples = 2;
-      const byteRate = sampleRate * 2;
-      const buffer = new ArrayBuffer(44 + numSamples * 2);
-      const view = new DataView(buffer);
-      const writeStr = (off, s) => { for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i)); };
-      writeStr(0, 'RIFF');
-      view.setUint32(4, 36 + numSamples * 2, true);
-      writeStr(8, 'WAVE');
-      writeStr(12, 'fmt ');
-      view.setUint32(16, 16, true);
-      view.setUint16(20, 1, true);
-      view.setUint16(22, 1, true);
-      view.setUint32(24, sampleRate, true);
-      view.setUint32(28, byteRate, true);
-      view.setUint16(32, 2, true);
-      view.setUint16(34, 16, true);
-      writeStr(36, 'data');
-      view.setUint32(40, numSamples * 2, true);
-
-      const blob = new Blob([buffer], { type: 'audio/wav' });
-      const url = URL.createObjectURL(blob);
-      const el = new Audio(url);
-      el.setAttribute('playsinline', '');
-      el.setAttribute('webkit-playsinline', '');
-      el.volume = 0;
-      await el.play();
-      URL.revokeObjectURL(url);
-      this._audioUnlocked = true;
-    } catch (e) {
-      // Best-effort — continue even if unlock fails
-    }
+    this._audioUnlocked = true;
+    const el = document.createElement('audio');
+    el.setAttribute('playsinline', '');
+    el.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+    el.play().catch(() => {});
   }
 
   async init(speed) {
     this.speed = speed || 1.0;
     this.destroyed = false;
 
-    await this.unlockAudio();
+    this.unlockAudio();
 
     if (!this.audioContext) {
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
