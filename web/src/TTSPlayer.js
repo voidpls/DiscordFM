@@ -5,9 +5,28 @@ const MODEL_URL = 'https://huggingface.co/backtracking/tiny-tts/resolve/main/tin
 const MODEL_CACHE_KEY = 'tinytts-onnx-model';
 const SAMPLE_RATE = 44100;
 
+function float32ToWav(samples, sampleRate) {
+  const len = samples.length;
+  const buf = new ArrayBuffer(44 + len * 2);
+  const v = new DataView(buf);
+  const w = (off, s) => { for (let i = 0; i < s.length; i++) v.setUint8(off + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + len * 2, true);
+  w(8, 'WAVE'); w(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, sampleRate, true); v.setUint32(28, sampleRate * 2, true);
+  v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w(36, 'data'); v.setUint32(40, len * 2, true);
+  let off = 44;
+  for (let i = 0; i < len; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    v.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    off += 2;
+  }
+  return buf;
+}
+
 class TTSPlayer {
   constructor() {
-    this.audioContext = null;
     this.session = null;
     this.queue = [];
     this.currentSource = null;
@@ -17,7 +36,6 @@ class TTSPlayer {
     this.modelLoaded = false;
     this.destroyed = false;
     this.modelDownloadAbort = null;
-    this._audioUnlocked = false;
 
     this.onQueueChange = null;
     this.onModelProgress = null;
@@ -25,30 +43,9 @@ class TTSPlayer {
     this.onError = null;
   }
 
-  // Play a silent WAV through an HTMLAudioElement to prime the iOS audio session,
-  // so AudioContext output is treated as active media (not silenced by mute switch)
-  unlockAudio() {
-    if (this._audioUnlocked) return;
-    this._audioUnlocked = true;
-    const el = document.createElement('audio');
-    el.setAttribute('playsinline', '');
-    el.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-    el.play().catch(() => {});
-  }
-
   async init(speed) {
     this.speed = speed || 1.0;
     this.destroyed = false;
-
-    this.unlockAudio();
-
-    if (!this.audioContext) {
-      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (this.audioContext.state === 'suspended') {
-      await this.audioContext.resume();
-    }
-
     await this.loadModel();
   }
 
@@ -110,7 +107,6 @@ class TTSPlayer {
     return await blob.arrayBuffer();
   }
 
-  // Queue pre-computed phoneme IDs for speech and start processing if idle
   speakPhonemes(phonemes) {
     if (this.destroyed) return;
     if (!phonemes || !phonemes.phoneIds) return;
@@ -121,7 +117,6 @@ class TTSPlayer {
     }
   }
 
-  // Process items one at a time — calls itself recursively after each utterance finishes
   async processNext() {
     if (this.destroyed || this.paused || this.queue.length === 0) {
       this.speaking = false;
@@ -147,10 +142,8 @@ class TTSPlayer {
     }
   }
 
-  // Run the TinyTTS ONNX model and play the resulting audio
   async synthesize(phoneIds, toneIds, langIds) {
     const seqLen = phoneIds.length;
-    // bert and ja_bert are unused by the model but are required inputs — pass zero-filled tensors
     const feeds = {
       x: new ort.Tensor('int64', BigInt64Array.from(phoneIds.map(v => BigInt(v))), [1, seqLen]),
       x_lengths: new ort.Tensor('int64', [BigInt(seqLen)], [1]),
@@ -168,25 +161,29 @@ class TTSPlayer {
     await this.playAudio(results.audio.data);
   }
 
-  // Play raw Float32Array audio samples through the Web Audio API
   async playAudio(samples) {
     return new Promise((resolve) => {
       if (this.destroyed) return resolve();
 
-      const audioBuffer = this.audioContext.createBuffer(1, samples.length, SAMPLE_RATE);
-      audioBuffer.getChannelData(0).set(samples);
+      const wav = float32ToWav(samples, SAMPLE_RATE);
+      const blob = new Blob([wav], { type: 'audio/wav' });
+      const url = URL.createObjectURL(blob);
+      const el = document.createElement('audio');
+      el.setAttribute('playsinline', '');
+      el.src = url;
+      this.currentSource = el;
 
-      const source = this.audioContext.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(this.audioContext.destination);
-      this.currentSource = source;
-
-      source.onended = () => {
+      el.onended = () => {
+        URL.revokeObjectURL(url);
         this.currentSource = null;
         resolve();
       };
 
-      source.start(0);
+      el.play().catch(() => {
+        URL.revokeObjectURL(url);
+        this.currentSource = null;
+        resolve();
+      });
     });
   }
 
@@ -196,15 +193,15 @@ class TTSPlayer {
 
   pause() {
     this.paused = true;
-    if (this.audioContext && this.audioContext.state === 'running') {
-      this.audioContext.suspend();
+    if (this.currentSource) {
+      this.currentSource.pause();
     }
   }
 
   resume() {
     this.paused = false;
-    if (this.audioContext && this.audioContext.state === 'suspended') {
-      this.audioContext.resume();
+    if (this.currentSource && this.currentSource.paused) {
+      this.currentSource.play().catch(() => {});
     }
     if (!this.speaking && this.queue.length > 0) {
       this.processNext();
@@ -225,18 +222,14 @@ class TTSPlayer {
     this.speaking = false;
 
     if (this.currentSource) {
-      try { this.currentSource.stop(); } catch (e) {}
+      this.currentSource.pause();
+      this.currentSource.src = '';
       this.currentSource = null;
     }
 
     if (this.modelDownloadAbort) {
       this.modelDownloadAbort.abort();
       this.modelDownloadAbort = null;
-    }
-
-    if (this.audioContext) {
-      this.audioContext.close();
-      this.audioContext = null;
     }
 
     this.session = null;

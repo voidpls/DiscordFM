@@ -143,9 +143,6 @@
       try {
         await tts.init(speed);
         modelLoading = false;
-        if (tts.audioContext && tts.audioContext.state === 'suspended') {
-          await tts.audioContext.resume();
-        }
         playing = true;
         tts.resume();
       } catch (err) {
