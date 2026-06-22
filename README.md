@@ -44,7 +44,8 @@ TTS_MAX_CHARS=250        # TTS input character limit
 ```bash
 npm test       # Bot + API tests (Vitest)
 npm run dev    # bot + API + web (concurrently)
-npm run start  # production: build web, start bot + API
+npm run start             # production: build web, start bot + API
+pm2 start npm --name discordfm -- start  # or via pm2
 ```
 
 Built with [Svelte](https://svelte.dev), [Hono](https://hono.dev), [Discord.js](https://discord.js.org), and [TinyTTS](https://github.com/tronghieuit/tiny-tts).

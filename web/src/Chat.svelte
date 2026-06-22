@@ -93,7 +93,7 @@
   {#each messages as msg}
     <div class="message">
       <div class="header">
-        <span class="display-name">{msg.displayName}</span>
+        <span class="display-name" style={msg.color ? `color:#${msg.color.toString(16).padStart(6,'0')}` : ''}>{msg.displayName}</span>
         <span class="username">(@{msg.username})</span>
         <span class="timestamp">{formatTimestamp(msg.timestamp)}</span>
       </div>
@@ -123,7 +123,11 @@
       {#if msg.stickers && msg.stickers.length > 0}
         <div class="stickers">
           {#each msg.stickers as st}
-            <img class="sticker" src={st.url} alt={st.name} loading="lazy" />
+            {#if st.format === 3}
+              <span class="sticker-text">:{st.name}:</span>
+            {:else}
+              <img class="sticker" src={st.url} alt={st.name} loading="lazy" />
+            {/if}
           {/each}
         </div>
       {/if}
@@ -216,6 +220,12 @@
     gap: 4px;
     flex-wrap: wrap;
     margin-top: 4px;
+  }
+
+  .sticker-text {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
   }
 
   .sticker {

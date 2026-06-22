@@ -46,7 +46,9 @@ function formatContent(message) {
 function formatMessagePayload(message) {
   const raw = formatContent(message);
   const clean = message.cleanContent || raw;
+  const stickerNames = (message.stickers || []).map(s => s.name).join(' ');
   let g2pInput = clean;
+  if (stickerNames) g2pInput += ` ${stickerNames} sticker`;
   if (g2pInput.length > ttsMaxChars) {
     const cutoff = g2pInput.lastIndexOf(' ', ttsMaxChars);
     g2pInput = cutoff > 0 ? g2pInput.slice(0, cutoff) : g2pInput.slice(0, ttsMaxChars);
@@ -64,8 +66,9 @@ function formatMessagePayload(message) {
     username: message.author.username,
     content: raw,
     phonemes,
+    color: message.member?.displayColor || null,
     attachments: message.attachments.map(a => ({ url: a.url })),
-    stickers: (message.stickers || []).map(s => ({ name: s.name, url: s.url })),
+    stickers: (message.stickers || []).map(s => ({ name: s.name, url: s.url, format: s.format })),
     timestamp: message.createdAt.toISOString(),
   };
 }
