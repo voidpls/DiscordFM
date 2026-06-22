@@ -5,6 +5,7 @@ const MODEL_URL = 'https://huggingface.co/backtracking/tiny-tts/resolve/main/tin
 const MODEL_CACHE_KEY = 'tinytts-onnx-model';
 const SAMPLE_RATE = 44100;
 
+// Encode Float32 audio samples as a WAV ArrayBuffer (PCM 16-bit, mono)
 function float32ToWav(samples, sampleRate) {
   const len = samples.length;
   const buf = new ArrayBuffer(44 + len * 2);
@@ -49,6 +50,7 @@ class TTSPlayer {
     await this.loadModel();
   }
 
+  // Load ONNX model from IndexedDB cache or download from HuggingFace
   async loadModel() {
     if (this.session && this.modelLoaded) return;
 
@@ -73,6 +75,7 @@ class TTSPlayer {
     if (this.onModelLoaded) this.onModelLoaded();
   }
 
+  // Stream-download the ONNX model with progress tracking
   async downloadModel() {
     const controller = new AbortController();
     this.modelDownloadAbort = controller;
@@ -107,6 +110,7 @@ class TTSPlayer {
     return await blob.arrayBuffer();
   }
 
+  // Queue pre-computed phoneme IDs for speech and start processing if idle
   speakPhonemes(phonemes) {
     if (this.destroyed) return;
     if (!phonemes || !phonemes.phoneIds) return;
@@ -117,6 +121,7 @@ class TTSPlayer {
     }
   }
 
+  // Process items one at a time — calls itself recursively after each utterance finishes
   async processNext() {
     if (this.destroyed || this.paused || this.queue.length === 0) {
       this.speaking = false;
@@ -142,8 +147,10 @@ class TTSPlayer {
     }
   }
 
+  // Run the TinyTTS ONNX model and play the resulting audio
   async synthesize(phoneIds, toneIds, langIds) {
     const seqLen = phoneIds.length;
+    // bert and ja_bert are unused by the model but are required inputs — pass zero-filled tensors
     const feeds = {
       x: new ort.Tensor('int64', BigInt64Array.from(phoneIds.map(v => BigInt(v))), [1, seqLen]),
       x_lengths: new ort.Tensor('int64', [BigInt(seqLen)], [1]),
@@ -161,11 +168,14 @@ class TTSPlayer {
     await this.playAudio(results.audio.data);
   }
 
+  // Scale samples down and play through an <audio> element (bypasses iOS mute switch)
   async playAudio(samples) {
     return new Promise((resolve) => {
       if (this.destroyed) return resolve();
 
-      const wav = float32ToWav(samples, SAMPLE_RATE);
+      const scaled = new Float32Array(samples.length);
+      for (let i = 0; i < samples.length; i++) scaled[i] = samples[i] * 0.25;
+      const wav = float32ToWav(scaled, SAMPLE_RATE);
       const blob = new Blob([wav], { type: 'audio/wav' });
       const url = URL.createObjectURL(blob);
       const el = document.createElement('audio');

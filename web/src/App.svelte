@@ -70,6 +70,7 @@
     }
   });
 
+  // Tear down the current SSE connection and mark disconnected
   function closeEventSource() {
     if (eventSource) {
       eventSource.onopen = null;
@@ -81,6 +82,7 @@
     connected = false;
   }
 
+  // Open an SSE stream to the API for the given channel, handling init and message events
   function connectSSE(channelId) {
     closeEventSource();
 
@@ -125,6 +127,7 @@
     };
   }
 
+  // Switch to a different channel, clearing messages and reconnecting SSE
   function selectChannel(id) {
     if (id === currentChannel) return;
     currentChannel = id;
@@ -133,6 +136,7 @@
     connectSSE(id);
   }
 
+  // Toggle play/pause — initializes TTS on first play (triggers model download if needed)
   async function handleToggle() {
     if (!tts) return;
 
@@ -161,6 +165,7 @@
     if (tts) tts.setSpeed(s);
   }
 
+  // Switch channel and clear the TTS queue so old channel audio doesn't carry over
   function handleSelectChannel(id) {
     if (tts) {
       tts.queue = [];
