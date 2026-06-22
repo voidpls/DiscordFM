@@ -1,0 +1,20 @@
+{
+  "name": "discordfm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Discord-to-TTS radio website",
+  "scripts": {
+    "dev": "concurrently -n bot,api,web -c cyan,green,yellow \"npm run dev -w bot\" \"npm run dev -w api\" \"npm run dev -w web\"",
+    "build": "npm run build -w web",
+    "start": "npm run build -w web && concurrently -n bot,api -c cyan,green \"npm run dev -w bot\" \"npm run dev -w api\"",
+    "test": "npm run test -w bot && npm run test -w api"
+  },
+  "workspaces": [
+    "bot",
+    "api",
+    "web"
+  ],
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
