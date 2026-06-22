@@ -2,62 +2,49 @@
 
 A Discord server that speaks.
 
-**DiscordFM** connects a bot to your server, streams messages into a browser-based radio, and reads each one aloud using local AI voice synthesis. No cloud TTS. No telemetry. No data leaves your machine.
+Connects a bot to your server, streams messages into a browser radio, and reads each one aloud using local AI voice synthesis. No cloud TTS. No telemetry.
 
----
-
-## Getting Started
+## Quick start
 
 ```bash
-cp .env.example .env
-```
-
-You'll need a **bot token** from the [Discord Developer Portal](https://discord.com/developers/applications), your **server ID**, and optionally a **role ID** to control which channels are visible (omit for @everyone).
-
-```bash
+cp .env.example .env   # add DISCORD_TOKEN, DISCORD_SERVER_ID
 npm install
-npm run build -w web
-npm run dev
+npm run start           # production: builds web, starts bot + API
 ```
 
-Open **`http://localhost:3000`**.
+Open `http://localhost:3000` (configurable via `PORT`). Use a reverse proxy for production traffic.
 
----
+## How it works
 
-## How It Works
-
-1. A **Discord bot** listens for messages and forwards them to a local API.
-2. The **API** streams messages to the browser via SSE and keeps a short in-memory buffer.
-3. The **web app** displays a real-time chat feed and speaks messages one at a time using **ONNX-powered TTS** inside your browser.
+1. **Bot** listens for messages, resolves mentions and emojis, then runs G2P to produce phoneme IDs.
+2. **API** streams both the raw message (for chat display) and pre-computed phonemes (for TTS) via SSE.
+3. **Web** renders the chat feed and feeds phonemes into an ONNX model running in-browser to generate speech.
 
 | Layer | What it does |
 |---|---|
-| `bot/` | Discord.js v14 — message listener, channel filtering |
-| `api/` | Hono + SSE — message relay, static file server |
-| `web/` | Svelte 5 + onnxruntime-web — radio UI, local TTS inference |
+| `bot/` | Discord.js v14 listener, G2P pipeline (CMU dict + neural fallback) |
+| `api/` | Hono SSE relay, in-memory message buffer |
+| `web/` | Svelte 5 + onnxruntime-web radio UI |
 
-The TTS model (~6 MB) is downloaded once and cached in your browser's IndexedDB. Subsequent loads are instant.
-
----
+The TTS model (~6 MB) is downloaded once and cached in IndexedDB. G2P runs server-side — no heavy models loaded in the browser beyond the core TTS model.
 
 ## Configuration
 
-| Variable | Purpose |
-|---|---|
-| `DISCORD_TOKEN` | Bot token (required) |
-| `DISCORD_SERVER_ID` | Your Discord guild ID |
-| `VIEW_AS_ROLE_ID` | Role for channel visibility filtering |
-| `OVERRIDE_DEFAULT_CHANNEL_ID` | Skip auto-detect, pick a specific default channel |
-
----
+```
+DISCORD_TOKEN=           # Bot token (required)
+DISCORD_SERVER_ID=       # Guild ID
+VIEW_AS_ROLE_ID=everyone # Role for channel visibility
+OVERRIDE_DEFAULT_CHANNEL_ID=  # Skip auto-detect, pick a specific channel
+PORT=3000                # Production server port
+TTS_MAX_CHARS=250        # TTS input character limit
+```
 
 ## Development
 
 ```bash
-npm test      # Bot and API tests (Vitest)
-npm run dev   # Starts bot + API concurrently
+npm test       # Bot + API tests (Vitest)
+npm run dev    # bot + API + web (concurrently)
+npm run start  # production: build web, start bot + API
 ```
-
----
 
 Built with [Svelte](https://svelte.dev), [Hono](https://hono.dev), [Discord.js](https://discord.js.org), and [TinyTTS](https://github.com/tronghieuit/tiny-tts).
