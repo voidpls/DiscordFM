@@ -161,7 +161,7 @@ class TTSPlayer {
       ja_bert: new ort.Tensor('float32', new Float32Array(seqLen * 768), [1, 768, seqLen]),
       noise_scale: new ort.Tensor('float32', [0.667], [1]),
       noise_scale_w: new ort.Tensor('float32', [0.8], [1]),
-      length_scale: new ort.Tensor('float32', [1.0 / this.speed], [1]),
+      length_scale: new ort.Tensor('float32', [1.0], [1]),
     };
 
     const results = await this.session.run(feeds);
@@ -180,7 +180,10 @@ class TTSPlayer {
       const url = URL.createObjectURL(blob);
       const el = document.createElement('audio');
       el.setAttribute('playsinline', '');
+      el.preservesPitch = true;
+      el.webkitPreservesPitch = true;
       el.src = url;
+      el.playbackRate = this.speed;
       this.currentSource = el;
 
       el.onended = () => {
