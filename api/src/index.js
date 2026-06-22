@@ -25,6 +25,10 @@ app.use('*', cors());
 // SSE endpoint — sends init payload on connect, then streams new messages as they arrive
 app.get('/events', (c) => {
   const channelId = c.req.query('channel') || '';
+  const allowed = state.getChannels().some(ch => ch.id === channelId);
+  if (!allowed) {
+    return c.json({ error: 'Channel not available' }, 403);
+  }
 
   return streamSSE(c, async (stream) => {
     stream.onAbort(() => {

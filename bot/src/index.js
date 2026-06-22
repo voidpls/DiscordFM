@@ -115,7 +115,11 @@ async function pushChannels(guild) {
 
   let channelFilter;
   if (isEveryone) {
-    channelFilter = c => c.type === ChannelType.GuildText && !c.isThread();
+    const everyoneRole = guild.roles.everyone;
+    channelFilter = c =>
+      c.type === ChannelType.GuildText &&
+      !c.isThread() &&
+      c.permissionsFor(everyoneRole).has(PermissionFlagsBits.ViewChannel);
   } else {
     const role = await guild.roles.fetch(viewAsRoleId);
     if (!role) {

@@ -135,7 +135,13 @@ describe('GET /api/channels', () => {
 });
 
 describe('GET /events', () => {
-  it('responds with text/event-stream content type', async () => {
+  it('returns 403 for unregistered channel', async () => {
+    const res = await app.request('/events?channel=abc');
+    expect(res.status).toBe(403);
+  });
+
+  it('responds with text/event-stream for registered channel', async () => {
+    state.setChannels([{ id: 'abc', name: 'general' }], 'Server', '');
     const res = await app.request('/events?channel=abc');
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('text/event-stream');
