@@ -10,6 +10,7 @@ Connects a bot to your server, streams messages into a browser radio, and reads 
 cp .env.example .env   # add DISCORD_TOKEN, DISCORD_SERVER_ID
 npm install
 npm run start           # production: builds web, starts bot + API
+pm2 start npm --name discordfm -- start  # recommended: auto-restart on crash
 ```
 
 Open `http://localhost:3000` (configurable via `PORT`). Use a reverse proxy for production traffic.
@@ -44,8 +45,6 @@ TTS_MAX_CHARS=250        # TTS input character limit
 ```bash
 npm test       # Bot + API tests (Vitest)
 npm run dev    # bot + API + web (concurrently)
-npm run start             # production: build web, start bot + API
-pm2 start npm --name discordfm -- start  # or via pm2
 ```
 
 Built with [Svelte](https://svelte.dev), [Hono](https://hono.dev), [Discord.js](https://discord.js.org), and [TinyTTS](https://github.com/tronghieuit/tiny-tts).
