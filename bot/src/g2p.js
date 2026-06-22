@@ -178,6 +178,7 @@ function normalizeText(text) {
   text = text.replace(/https?:\/\/\S+/g, '');
   text = text.replace(/<a?:(\w+):\d+>/g, '$1 emoji');
   text = text.replace(/:(\w+):/g, '$1 emoji');
+  text = text.replace(/@(\w+)/g, 'at $1');
   let buf = '';
   for (const ch of text) {
     const name = emojiToName[ch];

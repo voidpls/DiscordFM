@@ -134,7 +134,7 @@ async function pushChannels(guild) {
 
   const channels = guild.channels.cache
     .filter(channelFilter)
-    .map(c => ({ id: c.id, name: c.name }));
+    .map(c => ({ id: c.id, name: c.name, position: c.position }));
 
   await postToApi('/api/channels', {
     channels,

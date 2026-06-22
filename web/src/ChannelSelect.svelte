@@ -17,7 +17,7 @@
   );
 
   let displayList = $derived.by(() => {
-    if (!search) return channels;
+    if (!search) return [...channels].sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity));
     const results = fuzzysort.go(search, channels, { key: 'name', threshold: -10000 });
     return results.map(r => r.obj);
   });
