@@ -161,7 +161,7 @@ app.get('/', (c) => {
   if (serverName) {
     html = html.replace(
       /property="og:description"\s+content="[^"]*"/,
-      `property="og:description" content="Live [${serverName}] TTS radio."`
+      `property="og:description" content="Live ${serverName} TTS radio."`
     );
   }
   if (serverIcon) {
