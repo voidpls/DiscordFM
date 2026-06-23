@@ -38,6 +38,8 @@ class TTSPlayer {
     this.destroyed = false;
     this.modelDownloadAbort = null;
 
+    this.volume = 0.5;
+
     this.onQueueChange = null;
     this.onModelProgress = null;
     this.onModelLoaded = null;
@@ -173,9 +175,7 @@ class TTSPlayer {
     return new Promise((resolve) => {
       if (this.destroyed) return resolve();
 
-      const scaled = new Float32Array(samples.length);
-      for (let i = 0; i < samples.length; i++) scaled[i] = samples[i] * 0.25;
-      const wav = float32ToWav(scaled, SAMPLE_RATE);
+      const wav = float32ToWav(samples, SAMPLE_RATE);
       const blob = new Blob([wav], { type: 'audio/wav' });
       const url = URL.createObjectURL(blob);
       const el = document.createElement('audio');
@@ -184,6 +184,7 @@ class TTSPlayer {
       el.webkitPreservesPitch = true;
       el.src = url;
       el.playbackRate = this.speed;
+      el.volume = this.volume;
       this.currentSource = el;
 
       el.onended = () => {
@@ -202,6 +203,10 @@ class TTSPlayer {
 
   setSpeed(speed) {
     this.speed = speed;
+  }
+
+  setVolume(v) {
+    this.volume = Math.max(0, Math.min(100, v)) / 100;
   }
 
   pause() {

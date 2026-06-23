@@ -38,13 +38,12 @@
   .buttons {
     display: flex;
     gap: 4px;
-    flex-wrap: wrap;
   }
 
   .buttons button {
     padding: 4px 0;
     height: 30px;
-    width: 48px;
+    width: 40px;
     font-size: 0.75rem;
     text-align: center;
   }

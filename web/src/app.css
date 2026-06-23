@@ -83,6 +83,14 @@ input:focus, select:focus {
   border-color: var(--accent);
 }
 
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
 }

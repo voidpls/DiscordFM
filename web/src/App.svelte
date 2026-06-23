@@ -3,6 +3,7 @@
   import RadioHeader from './RadioHeader.svelte';
   import PlayButton from './PlayButton.svelte';
   import SpeedControl from './SpeedControl.svelte';
+  import VolumeControl from './VolumeControl.svelte';
 
   import ChannelSelect from './ChannelSelect.svelte';
   import Chat from './Chat.svelte';
@@ -16,6 +17,7 @@
   let connected = $state(false);
   let currentChannel = $state('');
   let speed = $state(1.5);
+  let volume = $state(50);
   let playing = $state(false);
   let queueLength = $state(0);
   let modelLoading = $state(false);
@@ -165,6 +167,11 @@
     if (tts) tts.setSpeed(s);
   }
 
+  function handleSetVolume(v) {
+    volume = v;
+    if (tts) tts.setVolume(v);
+  }
+
   // Switch channel and clear the TTS queue so old channel audio doesn't carry over
   function handleSelectChannel(id) {
     if (tts) {
@@ -184,6 +191,7 @@
 <div class="controls-row">
   <PlayButton playing={playing} ontoggle={handleToggle} />
   <SpeedControl speed={speed} onsetspeed={handleSetSpeed} />
+  <VolumeControl {volume} onsetvolume={handleSetVolume} />
 </div>
 
 <DownloadProgress
