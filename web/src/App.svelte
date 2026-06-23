@@ -143,6 +143,10 @@
     if (!tts) return;
 
     if (!playing) {
+      // Unlock audio on iOS — must happen synchronously within the user gesture
+      const unlock = new Audio();
+      unlock.play().catch(() => {});
+
       if (!tts.modelLoaded) {
         modelLoading = true;
       }
