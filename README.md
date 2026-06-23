@@ -43,7 +43,7 @@ TTS_MAX_CHARS=250        # TTS input character limit
 ## Development
 
 ```bash
-npm test       # Bot + API tests (Vitest)
+npm test       # All tests (Bot + API + Web)
 npm run dev    # bot + API + web (concurrently)
 ```
 
