@@ -115,7 +115,7 @@
     es.addEventListener('message', (e) => {
       try {
         const msg = JSON.parse(e.data);
-        messages = [...messages, msg];
+        messages = messages.length >= 200 ? [...messages.slice(-199), msg] : [...messages, msg];
         if (playing && tts && msg.channelId === currentChannel && msg.phonemes) {
           tts.speakPhonemes(msg.phonemes);
         }

@@ -156,11 +156,15 @@ client.on('clientReady', async () => {
 });
 
 client.on('messageCreate', async (message) => {
-  if (message.author.bot) return;
-  if (message.system) return;
-  if (message.guildId !== serverId) return;
+  try {
+    if (message.author.bot) return;
+    if (message.system) return;
+    if (message.guildId !== serverId) return;
 
-  await postToApi('/api/message', formatMessagePayload(message));
+    await postToApi('/api/message', formatMessagePayload(message));
+  } catch (err) {
+    console.error('[bot] messageCreate error:', err.message);
+  }
 });
 
 client.on('error', console.error);

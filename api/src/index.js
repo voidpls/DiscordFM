@@ -28,8 +28,15 @@ const subscribers = new Map();
 
 app.use('*', cors());
 
+// Return JSON for unhandled errors instead of HTML
+app.onError((err, c) => {
+  console.error('[api] Unhandled error:', err);
+  return c.json({ error: 'Internal server error' }, 500);
+});
+
 // SSE endpoint — sends init payload on connect, then streams new messages as they arrive
 app.get('/events', (c) => {
+  c.res.headers.set('Cache-Control', 'no-cache');
   const channelId = c.req.query('channel') || '';
   const allowed = state.getChannels().some(ch => ch.id === channelId);
   if (!allowed) {
@@ -75,7 +82,8 @@ async function broadcast(channelId, event, data) {
   const subs = subscribers.get(channelId);
   if (!subs) return;
   const payload = JSON.stringify(data);
-  for (const stream of subs) {
+  const streams = [...subs];
+  for (const stream of streams) {
     try {
       await stream.writeSSE({ event, data: payload });
     } catch {
@@ -169,6 +177,17 @@ app.get('/', (c) => {
     );
   }
   return c.html(html);
+});
+
+// Cache-Control for static assets: immutable long cache for content-hashed files
+app.use('*', async (c, next) => {
+  await next();
+  const path = c.req.path;
+  if (/\.(js|css|wasm|mjs)$/.test(path) && /[.-][a-f0-9]{8,}\./.test(path)) {
+    c.res.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  } else if (path === '/' || path.endsWith('.html')) {
+    c.res.headers.set('Cache-Control', 'no-cache');
+  }
 });
 
 app.use('*', serveStatic({ root: join(projectRoot, 'web/dist') }));

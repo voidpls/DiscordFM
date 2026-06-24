@@ -97,10 +97,12 @@ class TTSPlayer {
     const [modelResult, wasmResult] = await Promise.all([modelPromise, wasmPromise]);
 
     if (!modelResult.cached) {
-      try { await set(MODEL_CACHE_KEY, modelResult.data); } catch {}
+      try { await set(MODEL_CACHE_KEY, modelResult.data); }
+      catch (e) { console.warn('[TTSPlayer] Failed to cache model:', e.message); }
     }
     if (!wasmResult.cached) {
-      try { await set(WASM_CACHE_KEY, wasmResult.data); } catch {}
+      try { await set(WASM_CACHE_KEY, wasmResult.data); }
+      catch (e) { console.warn('[TTSPlayer] Failed to cache WASM:', e.message); }
     }
 
     ort.env.wasm.wasmPaths = { mjs: '/onnx-wasm.mjs', wasm: '/onnx-wasm.wasm' };
@@ -157,16 +159,13 @@ class TTSPlayer {
     const response = await fetch(WASM_URL);
     if (!response.ok) throw new Error(`WASM download failed: HTTP ${response.status}`);
 
-    const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
     const reader = response.body.getReader();
     const chunks = [];
-    let loaded = 0;
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       chunks.push(value);
-      loaded += value.byteLength;
     }
 
     const blob = new Blob(chunks, { type: 'application/wasm' });
@@ -300,7 +299,7 @@ class TTSPlayer {
 
   // Create and authorize a persistent audio element during a user gesture (required for iOS)
   activateAudio() {
-    if (this.audioEl) return;
+    if (this.audioEl || this.destroyed) return;
     const el = document.createElement('audio');
     el.setAttribute('playsinline', '');
     el.preservesPitch = true;
