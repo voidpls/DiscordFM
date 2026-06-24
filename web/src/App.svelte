@@ -3,6 +3,22 @@
   import RadioHeader from './RadioHeader.svelte';
   import PlayButton from './PlayButton.svelte';
   import SpeedControl from './SpeedControl.svelte';
+
+  // Generate a minimal silent WAV blob to unlock iOS audio during a user gesture
+  function silentWavBlob() {
+    const sampleRate = 44100;
+    const samples = Math.floor(sampleRate * 0.1);
+    const buf = new ArrayBuffer(44 + samples * 2);
+    const v = new DataView(buf);
+    const w = (off, str) => { for (let i = 0; i < str.length; i++) v.setUint8(off + i, str.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + samples * 2, true);
+    w(8, 'WAVE'); w(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sampleRate, true); v.setUint32(28, sampleRate * 2, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    w(36, 'data'); v.setUint32(40, samples * 2, true);
+    return new Blob([buf], { type: 'audio/wav' });
+  }
   import VolumeControl from './VolumeControl.svelte';
 
   import ChannelSelect from './ChannelSelect.svelte';
@@ -145,7 +161,8 @@
     if (!playing) {
       // Unlock audio on iOS — must happen synchronously within the user gesture
       const unlock = new Audio();
-      unlock.play().catch(() => {});
+      unlock.src = URL.createObjectURL(silentWavBlob());
+      unlock.play().then(() => URL.revokeObjectURL(unlock.src)).catch(() => URL.revokeObjectURL(unlock.src));
 
       if (!tts.modelLoaded) {
         modelLoading = true;
