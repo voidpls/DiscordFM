@@ -124,7 +124,7 @@
         <div class="stickers">
           {#each msg.stickers as st}
             {#if st.format === 3}
-              <span class="sticker-text">[{st.name} sticker]</span>
+              <span class="badge">[{st.name} sticker]</span>
             {:else}
               <img class="sticker" src={st.url} alt={st.name} loading="lazy" />
             {/if}
@@ -133,8 +133,8 @@
       {/if}
       {#if msg.attachments && msg.attachments.length > 0}
         <div class="attachments">
-          <span class="attachment-badge">
-            {msg.attachments.length === 1 ? '[link]' : `[${msg.attachments.length} attachments]`}
+          <span class="badge">
+            {msg.attachments.length === 1 ? '[1 attachment]' : `[${msg.attachments.length} attachments]`}
           </span>
         </div>
       {/if}
@@ -168,6 +168,7 @@
     padding: 6px 8px;
     border-radius: 4px;
     line-height: 1.4;
+    font-size: 0.85rem;
   }
 
   .message:hover {
@@ -203,7 +204,6 @@
   }
 
   .content {
-    font-size: 0.85rem;
     word-break: break-word;
     white-space: pre-wrap;
   }
@@ -222,9 +222,8 @@
     margin-top: 4px;
   }
 
-  .sticker-text {
-    font-size: 0.8rem;
-    color: var(--text-muted);
+  .badge {
+    color: var(--text-dim);
     font-style: italic;
   }
 
