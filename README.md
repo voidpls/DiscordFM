@@ -2,34 +2,36 @@
 
 A Discord server that speaks.
 
-Connects a bot to your server, streams messages into a browser radio, and reads each one aloud using local AI voice synthesis. No cloud TTS. No telemetry.
+Stream Discord messages into a browser radio, using local AI voice synthesis. No external APIs or cloud services.
 
-## Quick start
+## Getting started
 
 ```bash
-cp .env.example .env   # add DISCORD_TOKEN, DISCORD_SERVER_ID
+cp .env.example .env # add DISCORD_TOKEN, DISCORD_SERVER_ID
 npm install
-npm run start           # production: builds web, starts bot + API
-pm2 start npm --name discordfm -- start  # recommended: auto-restart on crash
+npm run start
+# OR via PM2 (recommended):
+pm2 start npm --name discordfm -- start
 ```
 
-Open `http://localhost:3000` (configurable via `PORT`). Use a reverse proxy for production traffic.
+Default Website/API port: `3000`
 
 ## How it works
+#### Text-to-Speech Pipeline
+1. **Bot** resolves mentions and emojis, then converts text to phoneme IDs using a CMU Pronouncing Dictionary lookup with a neural G2P fallback.
+2. **API** streams each message and its pre-computed phonemes to the browser via Server-Sent Events.
+3. **Web** feeds phonemes into a TinyTTS ONNX model running locally in the browser to synthesize speech.
 
-1. **Bot** listens for messages, resolves mentions and emojis, then runs G2P to produce phoneme IDs.
-2. **API** streams both the raw message (for chat display) and pre-computed phonemes (for TTS) via SSE.
-3. **Web** renders the chat feed and feeds phonemes into an ONNX model running in-browser to generate speech.
+Tiny footprint: TinyTTS model (half-precision FP8, ~3.5 MB) and ONNX Runtime (~13 MB, ~3 MB compressed). G2P runs server-side on new messages.
 
-| Layer | What it does |
-|---|---|
-| `bot/` | Discord.js v14 listener, G2P pipeline (CMU dict + neural fallback) |
-| `api/` | Hono SSE relay, in-memory message buffer |
-| `web/` | Svelte 5 + onnxruntime-web radio UI |
+| Layer | Role | Stack |
+|---|---|---|
+| `bot/` | Text → phonemes | Discord.js, CMU dict, TinyTTS G2P |
+| `api/` | Message relay | Hono, SSE |
+| `web/` | Phonemes → speech | Svelte 5, ONNX Runtime Web |
 
-The TTS model (~6 MB) is downloaded once and cached in IndexedDB. G2P runs server-side — no heavy models loaded in the browser beyond the core TTS model.
 
-## Configuration
+## Configuration (.env)
 
 ```
 DISCORD_TOKEN=           # Bot token (required)
