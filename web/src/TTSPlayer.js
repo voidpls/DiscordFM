@@ -39,6 +39,7 @@ class TTSPlayer {
     this.modelDownloadAbort = null;
 
     this.volume = 0.5;
+    this.audioEl = null;
 
     this.onQueueChange = null;
     this.onModelProgress = null;
@@ -178,10 +179,14 @@ class TTSPlayer {
       const wav = float32ToWav(samples, SAMPLE_RATE);
       const blob = new Blob([wav], { type: 'audio/wav' });
       const url = URL.createObjectURL(blob);
-      const el = document.createElement('audio');
-      el.setAttribute('playsinline', '');
-      el.preservesPitch = true;
-      el.webkitPreservesPitch = true;
+
+      if (!this.audioEl) {
+        this.audioEl = document.createElement('audio');
+        this.audioEl.setAttribute('playsinline', '');
+        this.audioEl.preservesPitch = true;
+        this.audioEl.webkitPreservesPitch = true;
+      }
+      const el = this.audioEl;
       el.src = url;
       el.playbackRate = this.speed;
       el.volume = this.volume;
@@ -207,6 +212,22 @@ class TTSPlayer {
 
   setVolume(v) {
     this.volume = Math.max(0, Math.min(100, v)) / 100;
+  }
+
+  // Create and authorize a persistent audio element during a user gesture (required for iOS)
+  activateAudio() {
+    if (this.audioEl) return;
+    const el = document.createElement('audio');
+    el.setAttribute('playsinline', '');
+    el.preservesPitch = true;
+    el.webkitPreservesPitch = true;
+    const silent = new Float32Array(Math.floor(SAMPLE_RATE * 0.1));
+    const wav = float32ToWav(silent, SAMPLE_RATE);
+    const blob = new Blob([wav], { type: 'audio/wav' });
+    const url = URL.createObjectURL(blob);
+    el.src = url;
+    el.play().then(() => URL.revokeObjectURL(url)).catch(() => URL.revokeObjectURL(url));
+    this.audioEl = el;
   }
 
   pause() {
@@ -238,6 +259,12 @@ class TTSPlayer {
     this.destroyed = true;
     this.queue = [];
     this.speaking = false;
+
+    if (this.audioEl) {
+      this.audioEl.pause();
+      this.audioEl.src = '';
+      this.audioEl = null;
+    }
 
     if (this.currentSource) {
       this.currentSource.pause();
