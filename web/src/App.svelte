@@ -191,7 +191,7 @@
 />
 
 <div class="controls-row">
-  <PlayButton playing={playing} ontoggle={handleToggle} />
+  <PlayButton playing={playing} ontoggle={handleToggle} loading={modelLoading || modelDownloading} />
   <SpeedControl speed={speed} onsetspeed={handleSetSpeed} />
   <VolumeControl {volume} onsetvolume={handleSetVolume} />
 </div>

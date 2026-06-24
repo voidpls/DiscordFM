@@ -1,12 +1,12 @@
 <script>
-  let { playing = false, ontoggle } = $props();
+  let { playing = false, loading = false, ontoggle } = $props();
 
   function handleClick() {
-    ontoggle?.();
+    if (!loading) ontoggle?.();
   }
 </script>
 
-<button class="play-btn" class:active={playing} onclick={handleClick}>
+<button class="play-btn" class:active={playing} class:loading disabled={loading} onclick={handleClick}>
   <span class="icon">{playing ? '\u23F8' : '\u25B6'}</span>
   <span class="label">{playing ? 'Pause' : 'Play'}</span>
 </button>
@@ -36,8 +36,14 @@
     color: var(--accent);
   }
 
-  .play-btn.active:hover {
-    background: rgba(88, 101, 242, 0.1);
+  .play-btn.loading {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .play-btn.loading:hover {
+    background: var(--accent);
+    border-color: var(--accent);
   }
 
   .icon {
