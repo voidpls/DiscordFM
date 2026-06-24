@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "cp ../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm public/onnx-wasm.wasm && cp ../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs public/onnx-wasm.mjs && vite build",
     "test": "vitest run"
   },
   "dependencies": {

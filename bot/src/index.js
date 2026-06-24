@@ -139,7 +139,7 @@ async function pushChannels(guild) {
   await postToApi('/api/channels', {
     channels,
     serverName: guild.name,
-    serverIcon: guild.iconURL({ size: 128 }) || '',
+    serverIcon: guild.iconURL({ size: 64 }) || '',
   });
 
   console.log(`[bot] Pushed ${channels.length} channels to API`);

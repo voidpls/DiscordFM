@@ -1,9 +1,37 @@
-import * as ort from 'onnxruntime-web';
+import * as ort from 'onnxruntime-web/wasm';
 import { get, set } from 'idb-keyval';
 
-const MODEL_URL = 'https://huggingface.co/backtracking/tiny-tts/resolve/main/tinytts.onnx';
+const MODEL_URL = 'https://huggingface.co/backtracking/tiny-tts/resolve/main/tinytts_fp16.onnx';
 const MODEL_CACHE_KEY = 'tinytts-onnx-model';
+const WASM_CACHE_KEY = 'onnx-wasm-binary';
+const WASM_URL = '/onnx-wasm.wasm';
 const SAMPLE_RATE = 44100;
+
+// Convert float32 value to 16-bit half-precision bit pattern
+function f32ToF16Bits(val) {
+  const buf = new ArrayBuffer(4);
+  new Float32Array(buf)[0] = val;
+  const bits = new Uint32Array(buf)[0];
+  const sign = (bits >> 16) & 0x8000;
+  const exp = (bits >> 23) & 0xFF;
+  const mant = bits & 0x7FFFFF;
+  if (exp === 0) return sign;
+  if (exp === 0xFF) return sign | 0x7C00 | (mant !== 0 ? 0x0200 : 0);
+  const newExp = exp - 112;
+  if (newExp > 30) return sign | 0x7C00;
+  if (newExp < 1) return sign;
+  return sign | (newExp << 10) | (mant >> 13);
+}
+
+// Decode 16-bit half-precision bit pattern to float32
+function f16ToF32(u16) {
+  const sign = (u16 >> 15) & 1;
+  const exp = (u16 >> 10) & 0x1F;
+  const mant = u16 & 0x3FF;
+  if (exp === 0) return (sign ? -1 : 1) * Math.pow(2, -14) * (mant / 1024);
+  if (exp === 31) return mant ? NaN : (sign ? -Infinity : Infinity);
+  return (sign ? -1 : 1) * Math.pow(2, exp - 15) * (1 + mant / 1024);
+}
 
 // Encode Float32 audio samples as a WAV ArrayBuffer (PCM 16-bit, mono)
 function float32ToWav(samples, sampleRate) {
@@ -53,24 +81,32 @@ class TTSPlayer {
     await this.loadModel();
   }
 
-  // Load ONNX model from IndexedDB cache or download from HuggingFace
+  // Load ONNX model and WASM runtime from cache or download in parallel
   async loadModel() {
     if (this.session && this.modelLoaded) return;
 
-    let modelData;
-    const cached = await get(MODEL_CACHE_KEY);
-    if (cached) {
-      modelData = cached;
-    } else {
-      modelData = await this.downloadModel();
-      try {
-        await set(MODEL_CACHE_KEY, modelData);
-      } catch (e) {
-        console.warn('[TTSPlayer] Failed to cache model:', e.message);
-      }
+    const modelPromise = (async () => {
+      const cached = await get(MODEL_CACHE_KEY);
+      if (cached) return { data: cached, total: cached.byteLength, cached: true };
+      const data = await this.downloadModel();
+      return { data, total: data.byteLength, cached: false };
+    })();
+
+    const wasmPromise = this.getWasmBinary();
+
+    const [modelResult, wasmResult] = await Promise.all([modelPromise, wasmPromise]);
+
+    if (!modelResult.cached) {
+      try { await set(MODEL_CACHE_KEY, modelResult.data); } catch {}
+    }
+    if (!wasmResult.cached) {
+      try { await set(WASM_CACHE_KEY, wasmResult.data); } catch {}
     }
 
-    this.session = await ort.InferenceSession.create(modelData, {
+    ort.env.wasm.wasmPaths = { mjs: '/onnx-wasm.mjs', wasm: '/onnx-wasm.wasm' };
+    ort.env.wasm.wasmBinary = wasmResult.data;
+
+    this.session = await ort.InferenceSession.create(modelResult.data, {
       executionProviders: ['wasm'],
     });
 
@@ -111,6 +147,38 @@ class TTSPlayer {
 
     const blob = new Blob(chunks, { type: 'application/octet-stream' });
     return await blob.arrayBuffer();
+  }
+
+  // Load ONNX Runtime WASM binary from IndexedDB cache or download
+  async getWasmBinary() {
+    const cached = await get(WASM_CACHE_KEY);
+    if (cached) return { data: cached, total: cached.byteLength, cached: true };
+
+    const response = await fetch(WASM_URL);
+    if (!response.ok) throw new Error(`WASM download failed: HTTP ${response.status}`);
+
+    const contentLength = parseInt(response.headers.get('content-length') || '0', 10);
+    const reader = response.body.getReader();
+    const chunks = [];
+    let loaded = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      loaded += value.byteLength;
+    }
+
+    const blob = new Blob(chunks, { type: 'application/wasm' });
+    const buffer = await blob.arrayBuffer();
+    const total = buffer.byteLength;
+
+    try {
+      await set(WASM_CACHE_KEY, buffer);
+    } catch (e) {
+      console.warn('[TTSPlayer] Failed to cache WASM:', e.message);
+    }
+    return { data: buffer, total, cached: false };
   }
 
   // Queue pre-computed phoneme IDs for speech and start processing if idle
@@ -160,11 +228,11 @@ class TTSPlayer {
       sid: new ort.Tensor('int64', [BigInt(0)], [1]),
       tone: new ort.Tensor('int64', BigInt64Array.from(toneIds.map(v => BigInt(v))), [1, seqLen]),
       language: new ort.Tensor('int64', BigInt64Array.from(langIds.map(v => BigInt(v))), [1, seqLen]),
-      bert: new ort.Tensor('float32', new Float32Array(seqLen * 1024), [1, 1024, seqLen]),
-      ja_bert: new ort.Tensor('float32', new Float32Array(seqLen * 768), [1, 768, seqLen]),
-      noise_scale: new ort.Tensor('float32', [0.667], [1]),
-      noise_scale_w: new ort.Tensor('float32', [0.8], [1]),
-      length_scale: new ort.Tensor('float32', [1.0], [1]),
+      bert: new ort.Tensor('float16', new Uint16Array(seqLen * 1024), [1, 1024, seqLen]),
+      ja_bert: new ort.Tensor('float16', new Uint16Array(seqLen * 768), [1, 768, seqLen]),
+      noise_scale: new ort.Tensor('float16', new Uint16Array([f32ToF16Bits(0.667)]), [1]),
+      noise_scale_w: new ort.Tensor('float16', new Uint16Array([f32ToF16Bits(0.8)]), [1]),
+      length_scale: new ort.Tensor('float16', new Uint16Array([f32ToF16Bits(1.0)]), [1]),
     };
 
     const results = await this.session.run(feeds);
@@ -173,10 +241,21 @@ class TTSPlayer {
 
   // Scale samples down and play through an <audio> element (bypasses iOS mute switch)
   async playAudio(samples) {
+    // Ensure float32 audio regardless of model output type
+    let f32;
+    if (samples instanceof Float32Array) {
+      f32 = samples;
+    } else if (typeof Float16Array !== 'undefined' && samples instanceof Float16Array) {
+      f32 = new Float32Array(samples);
+    } else {
+      // Uint16Array fallback — raw half-precision bits, decode manually
+      f32 = new Float32Array(samples.length);
+      for (let i = 0; i < samples.length; i++) f32[i] = f16ToF32(samples[i]);
+    }
     return new Promise((resolve) => {
       if (this.destroyed) return resolve();
 
-      const wav = float32ToWav(samples, SAMPLE_RATE);
+      const wav = float32ToWav(f32, SAMPLE_RATE);
       const blob = new Blob([wav], { type: 'audio/wav' });
       const url = URL.createObjectURL(blob);
 
