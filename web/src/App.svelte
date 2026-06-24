@@ -217,7 +217,9 @@
   .controls-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: space-between;
+    column-gap: 10px;
+    row-gap: 16px;
     padding: 8px 0;
     flex-wrap: wrap;
   }
