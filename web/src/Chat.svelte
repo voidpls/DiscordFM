@@ -124,7 +124,7 @@
         <div class="stickers">
           {#each msg.stickers as st}
             {#if st.format === 3}
-              <span class="sticker-text">:{st.name}:</span>
+              <span class="sticker-text">[{st.name} sticker]</span>
             {:else}
               <img class="sticker" src={st.url} alt={st.name} loading="lazy" />
             {/if}
