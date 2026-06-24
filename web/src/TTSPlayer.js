@@ -221,6 +221,11 @@ class TTSPlayer {
   // Run the TinyTTS ONNX model and play the resulting audio
   async synthesize(phoneIds, toneIds, langIds) {
     const seqLen = phoneIds.length;
+
+    const modelSpeed = Math.min(this.speed, 1.5);
+    const lengthScale = 1 / modelSpeed;
+    this.playbackRate = this.speed > 1.5 ? this.speed / 1.5 : 1.0;
+
     // bert and ja_bert are unused by the model but are required inputs — pass zero-filled tensors
     const feeds = {
       x: new ort.Tensor('int64', BigInt64Array.from(phoneIds.map(v => BigInt(v))), [1, seqLen]),
@@ -232,7 +237,7 @@ class TTSPlayer {
       ja_bert: new ort.Tensor('float16', new Uint16Array(seqLen * 768), [1, 768, seqLen]),
       noise_scale: new ort.Tensor('float16', new Uint16Array([f32ToF16Bits(0.667)]), [1]),
       noise_scale_w: new ort.Tensor('float16', new Uint16Array([f32ToF16Bits(0.8)]), [1]),
-      length_scale: new ort.Tensor('float16', new Uint16Array([f32ToF16Bits(1.0)]), [1]),
+      length_scale: new ort.Tensor('float16', new Uint16Array([f32ToF16Bits(lengthScale)]), [1]),
     };
 
     const results = await this.session.run(feeds);
@@ -267,7 +272,7 @@ class TTSPlayer {
       }
       const el = this.audioEl;
       el.src = url;
-      el.playbackRate = this.speed;
+      el.playbackRate = this.playbackRate;
       el.volume = this.volume;
       this.currentSource = el;
 
