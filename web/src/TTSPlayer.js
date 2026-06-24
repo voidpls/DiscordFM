@@ -68,7 +68,6 @@ class TTSPlayer {
 
     this.volume = 0.5;
     this.audioEl = null;
-    this.hasPlayed = false;
 
     this.onQueueChange = null;
     this.onModelProgress = null;
@@ -195,30 +194,21 @@ class TTSPlayer {
 
   // Process items one at a time — calls itself recursively after each utterance finishes
   async processNext() {
-    if (this.destroyed || this.paused) {
+    if (this.destroyed || this.paused || this.queue.length === 0) {
       this.speaking = false;
       return;
     }
 
     this.speaking = true;
 
-    if (this.queue.length > 0) {
-      const { phoneIds, toneIds, langIds } = this.queue.shift();
-      if (this.onQueueChange) this.onQueueChange(this.queue.length);
+    const { phoneIds, toneIds, langIds } = this.queue.shift();
+    if (this.onQueueChange) this.onQueueChange(this.queue.length);
 
-      try {
-        await this.synthesize(phoneIds, toneIds, langIds);
-        this.hasPlayed = true;
-      } catch (err) {
-        console.error('[TTSPlayer] Synthesis error:', err);
-        if (this.onError) this.onError(err);
-      }
-    } else if (this.hasPlayed) {
-      const silence = new Float32Array(Math.floor(SAMPLE_RATE * 0.5));
-      await this.playAudio(silence);
-    } else {
-      this.speaking = false;
-      return;
+    try {
+      await this.synthesize(phoneIds, toneIds, langIds);
+    } catch (err) {
+      console.error('[TTSPlayer] Synthesis error:', err);
+      if (this.onError) this.onError(err);
     }
 
     if (!this.destroyed && !this.paused) {
