@@ -157,17 +157,15 @@ app.get('/api/config', (c) => {
 // Serve the root HTML with dynamic OG tags based on the current server state
 app.get('/', (c) => {
   let html = cachedHtml;
-  const { serverName, serverIcon } = state.getServerInfo();
+  const { serverName } = state.getServerInfo();
   if (serverName) {
     html = html.replace(
-      /property="og:description"\s+content="[^"]*"/,
-      `property="og:description" content="Live ${serverName} TTS radio."`
+      /property="og:title"\s+content="[^"]*"/,
+      `property="og:title" content="${serverName} FM"`
     );
-  }
-  if (serverIcon) {
     html = html.replace(
-      /property="og:image"\s+content="[^"]*"/,
-      `property="og:image" content="${serverIcon}"`
+      /property="og:description"\s+content="[^"]*"/,
+      `property="og:description" content="Live Discord TTS Radio."`
     );
   }
   return c.html(html);
