@@ -43,7 +43,7 @@ function formatContent(message) {
 }
 
 // Build the full message payload sent to the API, including pre-computed phoneme IDs
-function formatMessagePayload(message) {
+function formatMessagePayload(message, { skipPhonemes = false } = {}) {
   const raw = formatContent(message);
   const clean = message.cleanContent || raw;
   const stickerNames = (message.stickers || []).map(s => s.name).join(' ');
@@ -54,10 +54,12 @@ function formatMessagePayload(message) {
     g2pInput = cutoff > 0 ? g2pInput.slice(0, cutoff) : g2pInput.slice(0, ttsMaxChars);
   }
   let phonemes = null;
-  try {
-    phonemes = getPhonemeIds(g2pInput);
-  } catch (err) {
-    console.error('[bot] G2P error:', err.message);
+  if (!skipPhonemes) {
+    try {
+      phonemes = getPhonemeIds(g2pInput);
+    } catch (err) {
+      console.error('[bot] G2P error:', err.message);
+    }
   }
   return {
     id: message.id,
@@ -161,7 +163,13 @@ client.on('messageCreate', async (message) => {
     if (message.system) return;
     if (message.guildId !== serverId) return;
 
-    await postToApi('/api/message', formatMessagePayload(message));
+    let skip = true;
+    try {
+      const res = await fetch(`${API_BASE}/api/active`);
+      skip = !(await res.json()).active;
+    } catch { /* API down — skip G2P */ }
+
+    await postToApi('/api/message', formatMessagePayload(message, { skipPhonemes: skip }));
   } catch (err) {
     console.error('[bot] messageCreate error:', err.message);
   }

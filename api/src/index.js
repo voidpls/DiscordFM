@@ -162,6 +162,13 @@ app.get('/api/config', (c) => {
   });
 });
 
+// Report whether any SSE connections are active — used by the bot to skip G2P when idle
+app.get('/api/active', (c) => {
+  let total = 0;
+  for (const subs of subscribers.values()) total += subs.size;
+  return c.json({ active: total > 0 });
+});
+
 // Serve the root HTML with dynamic OG tags based on the current server state
 app.get('/', (c) => {
   let html = cachedHtml;
